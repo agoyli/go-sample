@@ -1,0 +1,1 @@
+\i database/migrations/0001_users.up.sql

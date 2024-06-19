@@ -1,0 +1,2 @@
+insert into users (id,first_name,middle_name,last_name,username,password,status,phone,phone_verified_at,email,email_verified_at,last_active,created_at,updated_at) values 
+(1, 'Agoyli', null, null, 'agoyli', 'testtest', 'active', null, null, null, null, NOW(), NOW(), NOW());
