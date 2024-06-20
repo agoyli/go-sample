@@ -1,6 +1,8 @@
 package api
 
 import (
+	"errors"
+	"main/internal/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -15,8 +17,12 @@ func Error(c *gin.Context, err error) {
 	data := gin.H{}
 	data["success"] = false
 	data["errors"] = errToResponse(err)
+	if errors.Is(err, utils.ErrNotfound) {
+		c.JSON(http.StatusNotFound, data)
+	} else {
+		c.JSON(http.StatusBadRequest, data)
+	}
 
-	c.JSON(http.StatusBadRequest, data)
 }
 
 type errorResponse struct {

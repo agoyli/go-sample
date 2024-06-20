@@ -11,6 +11,8 @@ func LoadApiV1Routes(routes *gin.Engine) {
 		// users
 		v1.GET("users", UserListHandler)
 		v1.POST("users", UserCreateHandler)
+		v1.PUT("users/{id}", UserUpdateHandler)
+		v1.DELETE("users", UserDeleteHandler)
 	}
 }
 

@@ -10,6 +10,7 @@ type AppError struct {
 
 var (
 	ErrInvalid  = NewAppError("invalid", "", "please fill with valid options")
+	ErrRequired = NewAppError("required", "", "please fill required keys")
 	ErrNotfound = NewAppError("not_found", "", "")
 )
 
