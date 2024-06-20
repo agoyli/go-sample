@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"main/internal/models"
 	"main/internal/utils"
 	"slices"
@@ -47,17 +46,27 @@ func (a Access) UserFindById(ctx context.Context, id uint) (model *models.User, 
 func (a Access) UserInsert(ctx context.Context, data *models.User) (model *models.User, err error) {
 	// logger update ctx
 
+	// run query
+	err = a.runQuery(ctx, func(tx *pgxpool.Conn) (err error) {
+		sql, sqlArgs := userInsertSql(data)
+		_, err = tx.Exec(ctx, sql, sqlArgs...)
+		return
+	})
+	if err != nil {
+		// describe err and log
+	}
+	return
+}
+func userInsertSql(data *models.User) (sql string, sqlArgs []interface{}) {
+	sqlArgs = []interface{}{}
+	// set dataMap
 	dataMap := map[string]interface{}{}
 	dataStr, _ := json.Marshal(data)
-	err = json.Unmarshal(dataStr, &dataMap)
-	if err != nil {
-		return
-	}
+	_ = json.Unmarshal(dataStr, &dataMap)
 
 	// set sql insert values
 	sqlKeys := ""
 	sqlValues := ""
-	sqlArgs := []interface{}{}
 	for key, value := range dataMap {
 		if value == nil || slices.Contains([]string{"id"}, key) {
 			continue
@@ -69,12 +78,19 @@ func (a Access) UserInsert(ctx context.Context, data *models.User) (model *model
 	sqlKeys = strings.Trim(sqlKeys, ", ")
 	sqlValues = strings.Trim(sqlValues, ", ")
 
+	// sql
+	sqlTableParts := strings.Split(sqlUserTable, " ")
+	sqlTable := sqlTableParts[0]
+	sql = fmt.Sprintf(`insert into %v (%v) values (%v)`, sqlTable, sqlKeys, sqlValues)
+	return
+}
+
+func (a Access) UserUpdate(ctx context.Context, data *models.User) (model *models.User, err error) {
+	// logger update ctx
+
 	// run query
 	err = a.runQuery(ctx, func(tx *pgxpool.Conn) (err error) {
-		sqlTableParts := strings.Split(sqlUserTable, " ")
-		sqlTable := sqlTableParts[0]
-		sql := fmt.Sprintf(`insert into %v (%v) values (%v)`, sqlTable, sqlKeys, sqlValues)
-		log.Println(sql)
+		sql, sqlArgs := userUpdateSql(data)
 		_, err = tx.Exec(ctx, sql, sqlArgs...)
 		return
 	})
@@ -83,21 +99,15 @@ func (a Access) UserInsert(ctx context.Context, data *models.User) (model *model
 	}
 	return
 }
-
-func (a Access) UserUpdate(ctx context.Context, data *models.User) (model *models.User, err error) {
-	// logger update ctx
-
+func userUpdateSql(data *models.User) (sql string, sqlArgs []interface{}) {
+	sqlArgs = []interface{}{data.Id}
+	// set dataMap
 	dataMap := map[string]interface{}{}
 	dataStr, _ := json.Marshal(data)
-	err = json.Unmarshal(dataStr, &dataMap)
-	if err != nil {
-		return
-	}
-	id := data.Id
+	_ = json.Unmarshal(dataStr, &dataMap)
 
 	// set sql insert values
 	sqlSets := ""
-	sqlArgs := []interface{}{id}
 	for key, value := range dataMap {
 		if value == nil || slices.Contains([]string{"id"}, key) {
 			continue
@@ -106,17 +116,10 @@ func (a Access) UserUpdate(ctx context.Context, data *models.User) (model *model
 		sqlSets += fmt.Sprintf("%v=$%v", key, len(sqlArgs))
 	}
 
-	// run query
-	err = a.runQuery(ctx, func(tx *pgxpool.Conn) (err error) {
-		sqlTableParts := strings.Split(sqlUserTable, " ")
-		sqlTable := sqlTableParts[0]
-		sql := fmt.Sprintf(`update %v set %v where id=$1`, sqlTable, sqlSets)
-		_, err = tx.Exec(ctx, sql, sqlArgs...)
-		return
-	})
-	if err != nil {
-		// describe err and log
-	}
+	// sql
+	sqlTableParts := strings.Split(sqlUserTable, " ")
+	sqlTable := sqlTableParts[0]
+	sql = fmt.Sprintf(`update %v set %v where id=$1`, sqlTable, sqlSets)
 	return
 }
 
@@ -126,9 +129,32 @@ func (a Access) UserFindBy(ctx context.Context, opts map[string]interface{}) (li
 		Users: []*models.User{},
 	}
 
+	// run query
+	err = a.runQuery(ctx, func(tx *pgxpool.Conn) (err error) {
+		sql, sqlArgs := userFindBySql(opts)
+		rows, err := tx.Query(ctx, sql, sqlArgs...)
+		if err != nil {
+			return err
+		}
+		if rows.Next() {
+			model := &models.User{}
+			err = scanUser(rows, model, &list.Total)
+			if err != nil {
+				return err
+			}
+			list.Users = append(list.Users, model)
+		}
+		return
+	})
+	if err != nil {
+		// describe err and log
+	}
+	return
+}
+func userFindBySql(opts map[string]interface{}) (sql string, sqlArgs []interface{}) {
+	sqlArgs = []interface{}{}
 	// set sql wheres
 	sqlWheres := "1=1"
-	sqlArgs := []interface{}{}
 	sqlLimit := 12
 	sqlOffset := 0
 	if v, ok := opts["ids"]; ok {
@@ -150,27 +176,9 @@ func (a Access) UserFindBy(ctx context.Context, opts map[string]interface{}) (li
 		sqlOffset = v
 	}
 
-	// run query
-	err = a.runQuery(ctx, func(tx *pgxpool.Conn) (err error) {
-		sqlAppend := fmt.Sprintf(`%v LIMIT %v OFFSET %v`, sqlUserOrder, sqlLimit, sqlOffset)
-		sql := fmt.Sprintf(`select %v, count(u.id) over() from %v where %v %v`, sqlUserKeys, sqlUserTable, sqlWheres, sqlAppend)
-		rows, err := tx.Query(ctx, sql, sqlArgs...)
-		if err != nil {
-			return err
-		}
-		if rows.Next() {
-			model := &models.User{}
-			err = scanUser(rows, model, &list.Total)
-			if err != nil {
-				return err
-			}
-			list.Users = append(list.Users, model)
-		}
-		return
-	})
-	if err != nil {
-		// describe err and log
-	}
+	// sql
+	sqlAppend := fmt.Sprintf(`%v LIMIT %v OFFSET %v`, sqlUserOrder, sqlLimit, sqlOffset)
+	sql = fmt.Sprintf(`select %v, count(u.id) over() from %v where %v %v`, sqlUserKeys, sqlUserTable, sqlWheres, sqlAppend)
 	return
 }
 
