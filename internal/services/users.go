@@ -8,9 +8,21 @@ import (
 )
 
 type UserCreateDto struct {
+	FirstName  *string `json:"first_name" form:"first_name"`
+	LastName   *string `json:"last_name" form:"last_name"`
+	MiddleName *string `json:"middle_name" form:"middle_name"`
+	Username   *string `json:"username" form:"username"`
+	Password   *string `json:"password" form:"password"`
+	Status     *string `json:"status" form:"status"`
+	Phone      *string `json:"phone" form:"phone"`
+	Email      *string `json:"email" form:"email"`
 }
 
 type UserQueryDto struct {
+	Search *string `form:"search"`
+	Sort   *string `form:"search"`
+	Limit  int     `form:"limit"`
+	Offset int     `form:"offset"`
 }
 
 type UsersResponse struct {
@@ -51,8 +63,9 @@ func UserList(ctx context.Context, query UserQueryDto) (resp *UsersResponse, err
 	return
 }
 
-func UserCreate() {
+func UserCreate(ctx context.Context, query UserCreateDto) (resp *UserResponse, err error) {
 
+	return
 }
 
 func userToResponse(model models.User) (resp UserResponse) {
