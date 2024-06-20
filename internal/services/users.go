@@ -45,9 +45,7 @@ func UserList(ctx context.Context, query UserQueryDto) (resp *UsersResponse, err
 	}
 	resp.Total = list.Total
 	for _, v := range list.Users {
-		resp.Users = append(resp.Users, UserResponse{
-			Id: v.Id,
-		})
+		resp.Users = append(resp.Users, userToResponse(*v))
 	}
 
 	return
@@ -58,5 +56,21 @@ func UserCreate() {
 }
 
 func userToResponse(model models.User) (resp UserResponse) {
-	return
+	resp = UserResponse{
+		Id:              model.Id,
+		FirstName:       model.FirstName,
+		LastName:        model.LastName,
+		MiddleName:      model.MiddleName,
+		Username:        model.Username,
+		Password:        model.Password,
+		Status:          model.Status,
+		Phone:           model.Phone,
+		PhoneVerifiedAt: model.PhoneVerifiedAt,
+		Email:           model.Email,
+		EmailVerifiedAt: model.EmailVerifiedAt,
+		LastActive:      model.LastActive,
+		CreatedAt:       model.CreatedAt,
+		UpdatedAt:       model.UpdatedAt,
+	}
+	return resp
 }

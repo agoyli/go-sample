@@ -2,6 +2,7 @@ package pgx
 
 import (
 	"context"
+	"fmt"
 	"main/internal/models"
 	"strconv"
 
@@ -10,11 +11,19 @@ import (
 )
 
 const sqlUserTable = `users u`
-const sqlUserKeys = `u.id, u.first_name, u.last_name, u.middle_name, u.username, u.password, u.status, u.phone, u.phone_verified_at, u.email, u.email_verified_at, u.last_active, u.created_at, u.updated_at`
 const sqlUserOrder = `order by u.id`
 
+// scan keys (separated by new line by 5 keys)
+const sqlUserKeys = `u.id, u.first_name, u.last_name, u.middle_name, u.username, 
+	u.password, u.status, u.phone, u.phone_verified_at, u.email, 
+	u.email_verified_at, u.last_active, u.created_at, u.updated_at`
+
 func scanUser(rows pgx.Row, model *models.User, addColumns ...interface{}) error {
-	return rows.Scan(parseColumnsForScan(model, addColumns...)...)
+	scanColumns := append([]interface{}{
+		&model.Id, &model.FirstName, &model.LastName, &model.MiddleName, &model.Username,
+		&model.Password, &model.Status, &model.Phone, &model.PhoneVerifiedAt, &model.Email,
+		&model.EmailVerifiedAt, &model.LastActive, &model.CreatedAt, &model.UpdatedAt}, addColumns...)
+	return rows.Scan(scanColumns...)
 }
 
 func (a Access) UserFindById(ctx context.Context, id uint) (model *models.User, err error) {
@@ -49,14 +58,14 @@ func (a Access) UserFindBy(ctx context.Context, opts map[string]interface{}) (li
 	}
 
 	err = a.runQuery(ctx, func(tx *pgxpool.Conn) (err error) {
-		sql := `select ` + sqlUserKeys + `, count(u.id) over() from ` + sqlUserTable + ` where ` + sqlWheres + ` ` + sqlUserOrder
+		sql := fmt.Sprintf(`select %s, count(u.id) over() from %s where %s %s`, sqlUserKeys, sqlUserTable, sqlWheres, sqlUserOrder)
 		rows, err := tx.Query(ctx, sql, sqlArgs...)
 		if err != nil {
 			return err
 		}
 		if rows.Next() {
 			model := &models.User{}
-			err = scanUser(rows, model, list.Total)
+			err = scanUser(rows, model, &list.Total)
 			if err != nil {
 				return err
 			}
